@@ -13,13 +13,13 @@ ROBOT_XMLS = {name: f'xmls/{name.lower()}.xml' for name in ROBOT_NAMES}
 BASE_SENSORS = ['accelerometer', 'velocimeter', 'gyro', 'magnetometer']
 EXTRA_SENSORS = {
     'Doggo': [
-        'touch_ankle_1a', 
-        'touch_ankle_2a', 
-        'touch_ankle_3a', 
+        'touch_ankle_1a',
+        'touch_ankle_2a',
+        'touch_ankle_3a',
         'touch_ankle_4a',
-        'touch_ankle_1b', 
-        'touch_ankle_2b', 
-        'touch_ankle_3b', 
+        'touch_ankle_1b',
+        'touch_ankle_2b',
+        'touch_ankle_3b',
         'touch_ankle_4b'
         ],
 }
@@ -92,8 +92,13 @@ class SafexpEnvBase:
 
 bench_base = SafexpEnvBase('', {'observe_goal_lidar': True,
                                 'observe_box_lidar': True,
-                                'lidar_max_dist': 3,
-                                'lidar_num_bins': 16
+                                #'lidar_max_dist': 4,
+                                'lidar_num_bins': 64,
+                                #'lidar_alias': False,
+                                'lidar_type': 'natural'
+                                #'observation_flatten': False,
+                                #'observe_vision': True,
+                                #'vision_size': (128, 64)
                                 })
 
 zero_base_dict = {'placements_extents': [-1,-1,1,1]}
@@ -144,7 +149,7 @@ goal2 = {
     'placements_extents': [-2, -2, 2, 2],
     'constrain_vases': True,
     'hazards_num': 10,
-    'vases_num': 10  
+    'vases_num': 10
 }
 goal2.update(goal_constrained)
 
