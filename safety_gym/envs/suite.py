@@ -92,10 +92,11 @@ class SafexpEnvBase:
 
 bench_base = SafexpEnvBase('', {'observe_goal_lidar': True,
                                 'observe_box_lidar': True,
+
                                 #'lidar_max_dist': 4,
+                                'lidar_type': 'natural',
                                 'lidar_num_bins': 64,
-                                #'lidar_alias': False,
-                                'lidar_type': 'natural'
+
                                 #'observation_flatten': False,
                                 #'observe_vision': True,
                                 #'vision_size': (128, 64)
