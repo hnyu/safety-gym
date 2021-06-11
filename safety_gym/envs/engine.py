@@ -529,7 +529,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
         placements.update(self.placements_dict_from_object('robot'))
         placements.update(self.placements_dict_from_object('wall'))
 
-        if self.task in ['goal', 'push']:
+        if self.task in ['goal', 'push', 'button']:
             placements.update(self.placements_dict_from_object('goal'))
         if self.task == 'push':
             placements.update(self.placements_dict_from_object('box'))
@@ -697,10 +697,16 @@ class Engine(gym.Env, gym.utils.EzPickle):
 
         # Extra geoms (immovable objects) to add to the scene
         world_config['geoms'] = {}
-        if self.task in ['goal', 'push']:
+        if self.task in ['goal', 'push', 'button']:
+            if self.task == 'button':
+                goal_size = self.buttons_size
+                height = self.buttons_size * 2
+            else:
+                goal_size = self.goal_size
+                height = self.goal_size / 2
             geom = {'name': 'goal',
-                    'size': [self.goal_size, self.goal_size / 2],
-                    'pos': np.r_[self.layout['goal'], self.goal_size / 2 + 1e-2],
+                    'size': [goal_size, height],
+                    'pos': np.r_[self.layout['goal'], height + 1e-2],
                     'rot': self.random_rot(),
                     'type': 'cylinder',
                     'contype': 0,
@@ -842,6 +848,12 @@ class Engine(gym.Env, gym.utils.EzPickle):
     def build_goal_button(self):
         ''' Pick a new goal button, maybe with resampling due to hazards '''
         self.goal_button = self.rs.choice(self.buttons_num)
+        # update goal location
+        self.layout['goal'] = self.layout[f'button{self.goal_button}']
+        self.world_config_dict['geoms']['goal']['pos'][:2] = self.layout['goal']
+        goal_body_id = self.sim.model.body_name2id('goal')
+        self.sim.model.body_pos[goal_body_id][:2] = self.layout['goal']
+        self.sim.forward()
 
     def build(self):
         ''' Build a new physics simulation environment '''
@@ -1479,8 +1491,8 @@ class Engine(gym.Env, gym.utils.EzPickle):
                 offset += self.render_lidar_offset_delta
 
         # Add goal marker
-        if self.task == 'button':
-            self.render_area(self.goal_pos, self.buttons_size * 2, COLOR_BUTTON, 'goal', alpha=0.1)
+        #if self.task == 'button':
+        #    self.render_area(self.goal_pos, self.buttons_size * 2, COLOR_BUTTON, 'goal', alpha=0.1)
 
         # Add indicator for nonzero cost
         if self._cost.get('cost', 0) > 0:
