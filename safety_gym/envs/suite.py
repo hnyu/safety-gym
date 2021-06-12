@@ -92,15 +92,13 @@ class SafexpEnvBase:
 
 bench_base = SafexpEnvBase('', {'observe_goal_lidar': True,
                                 'observe_box_lidar': True,
-
-                                #'lidar_max_dist': 4,
                                 'lidar_type': 'natural',
-                                'lidar_num_bins': 64,
-
-                                #'observation_flatten': False,
-                                #'observe_vision': True,
-                                #'vision_size': (128, 64)
+                                'lidar_num_bins': 64
                                 })
+
+bench_vision_base = SafexpEnvBase('', {'observation_flatten': False,
+                                       'observe_vision': True,
+                                       'vision_size': (120, 80)})
 
 zero_base_dict = {'placements_extents': [-1,-1,1,1]}
 
@@ -159,7 +157,10 @@ bench_goal_base.register('0', goal0)
 bench_goal_base.register('1', goal1)
 bench_goal_base.register('2', goal2)
 
-
+bench_goal_vision_base = bench_vision_base.copy('GoalVision', goal_all)
+bench_goal_vision_base.register('0', goal0)
+bench_goal_vision_base.register('1', goal1)
+bench_goal_vision_base.register('2', goal2)
 
 #=============================================================================#
 #                                                                             #
@@ -220,6 +221,10 @@ bench_button_base.register('0', button0)
 bench_button_base.register('1', button1)
 bench_button_base.register('2', button2)
 
+bench_button_vision_base = bench_vision_base.copy('ButtonVision', button_all)
+bench_button_vision_base.register('0', button0)
+bench_button_vision_base.register('1', button1)
+bench_button_vision_base.register('2', button2)
 
 
 #=============================================================================#
@@ -275,7 +280,10 @@ bench_push_base.register('0', push0)
 bench_push_base.register('1', push1)
 bench_push_base.register('2', push2)
 
-
+bench_push_vision_base = bench_vision_base.copy('PushVision', push_all)
+bench_push_vision_base.register('0', push0)
+bench_push_vision_base.register('1', push1)
+bench_push_vision_base.register('2', push2)
 
 #=============================================================================#
 #                                                                             #

@@ -154,7 +154,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
         'render_lidar_offset_delta': 0.06,
 
         # Vision observation parameters
-        'vision_size': (60, 40),  # Size (width, height) of vision observation; gets flipped internally to (rows, cols) format
+        'vision_size': (120, 80),  # Size (width, height) of vision observation; gets flipped internally to (rows, cols) format
         'vision_render': True,  # Render vision observation in the viewer
         'vision_render_size': (300, 200),  # Size to render the vision in the viewer
 
