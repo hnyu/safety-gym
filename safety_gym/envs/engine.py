@@ -156,7 +156,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
         # Vision observation parameters
         'vision_size': (120, 80),  # Size (width, height) of vision observation; gets flipped internally to (rows, cols) format
         'vision_render': True,  # Render vision observation in the viewer
-        'vision_render_size': (300, 200),  # Size to render the vision in the viewer
+        'vision_render_scale': 2,  # Scale to render the vision in the viewer
 
         # Lidar observation parameters
         'lidar_num_bins': 10,  # Bins (around a full circle) for lidar sensing
@@ -475,9 +475,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
             obs_space_dict['ctrl'] = gym.spaces.Box(-np.inf, np.inf, (self.robot.nu,), dtype=np.float32)
         if self.observe_vision:
             width, height = self.vision_size
-            rows, cols = height, width
-            self.vision_size = (rows, cols)
-            obs_space_dict['vision'] = gym.spaces.Box(0, 1.0, self.vision_size + (3,), dtype=np.float32)
+            obs_space_dict['vision'] = gym.spaces.Box(0, 255, (height, width, 3,), dtype=np.uint8)
         # Flatten it ourselves
         self.obs_space_dict = obs_space_dict
         if self.observation_flatten:
@@ -966,10 +964,9 @@ class Engine(gym.Env, gym.utils.EzPickle):
     def obs_vision(self):
         ''' Return pixels from the robot camera '''
         # Get a render context so we can
-        rows, cols = self.vision_size
-        width, height = cols, rows
+        width, height = self.vision_size
         vision = self.sim.render(width, height, camera_name='vision', mode='offscreen')
-        return np.array(vision, dtype='float32') / 255
+        return vision # y axis is flipped
 
     def obs_lidar(self, positions, group):
         '''
@@ -1431,7 +1428,6 @@ class Engine(gym.Env, gym.utils.EzPickle):
                height=DEFAULT_HEIGHT
                ):
         ''' Render the environment to the screen '''
-
         if self.viewer is None or mode!=self._old_render_mode:
             # Set camera if specified
             if mode == 'human':
@@ -1500,17 +1496,14 @@ class Engine(gym.Env, gym.utils.EzPickle):
 
         # Draw vision pixels
         if self.observe_vision and self.vision_render:
-            vision = self.obs_vision()
-            vision = np.array(vision * 255, dtype='uint8')
-            vision = Image.fromarray(vision).resize(self.vision_render_size)
-            vision = np.array(vision, dtype='uint8')
-            self.save_obs_vision = vision
+            self.save_obs_vision = self.obs_vision()
 
         if mode=='human':
             self.viewer.render()
         elif mode=='rgb_array':
-            self.viewer.render(width, height)
-            data = self.viewer.read_pixels(width, height, depth=False)
-            self.viewer._markers[:] = []
-            self.viewer._overlay.clear()
-            return data[::-1, :, :]
+            # y axis is flipped
+            width, height = self.vision_size
+            vision = self.sim.render(width * self.vision_render_scale,
+                                     height * self.vision_render_scale,
+                                     camera_name='vision', mode='offscreen')
+            return vision[::-1, ...] # y axis is flipped

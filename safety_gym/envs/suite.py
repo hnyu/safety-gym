@@ -98,7 +98,7 @@ bench_base = SafexpEnvBase('', {'observe_goal_lidar': True,
 
 bench_vision_base = SafexpEnvBase('', {'observation_flatten': False,
                                        'observe_vision': True,
-                                       'vision_size': (120, 80)})
+                                       'vision_size': (160, 80)})
 
 zero_base_dict = {'placements_extents': [-1,-1,1,1]}
 
@@ -157,6 +157,8 @@ bench_goal_base.register('0', goal0)
 bench_goal_base.register('1', goal1)
 bench_goal_base.register('2', goal2)
 
+goal1.update({"observe_hazards": False, "observe_vases": False})
+goal2.update({"observe_hazards": False, "observe_vases": False})
 bench_goal_vision_base = bench_vision_base.copy('GoalVision', goal_all)
 bench_goal_vision_base.register('0', goal0)
 bench_goal_vision_base.register('1', goal1)
@@ -221,6 +223,9 @@ bench_button_base.register('0', button0)
 bench_button_base.register('1', button1)
 bench_button_base.register('2', button2)
 
+button_all.update({"observe_buttons": False})
+button1.update({"observe_buttons": False, "observe_hazards": False, "observe_gremlins": False})
+button2.update({"observe_buttons": False, "observe_hazards": False, "observe_gremlins": False})
 bench_button_vision_base = bench_vision_base.copy('ButtonVision', button_all)
 bench_button_vision_base.register('0', button0)
 bench_button_vision_base.register('1', button1)
@@ -236,7 +241,7 @@ bench_button_vision_base.register('2', button2)
 # Shared among all (levels 0, 1, 2)
 push_all = {
     'task': 'push',
-    'box_size': 0.2,
+    'box_size': 0.1,
     'box_null_dist': 0,
     'hazards_size': 0.3,
     }
@@ -281,6 +286,8 @@ bench_push_base.register('1', push1)
 bench_push_base.register('2', push2)
 
 bench_push_vision_base = bench_vision_base.copy('PushVision', push_all)
+push1.update({"observe_hazards": False, "observe_pillars": False})
+push2.update({"observe_hazards": False, "observe_pillars": False})
 bench_push_vision_base.register('0', push0)
 bench_push_vision_base.register('1', push1)
 bench_push_vision_base.register('2', push2)
