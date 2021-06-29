@@ -16,14 +16,14 @@ Tools that allow the Safety Gym Engine to interface to MuJoCo.
 The World class owns the underlying mujoco scene and the XML,
 and is responsible for regenerating the simulator.
 
-The way to use this is to configure a World() based on your needs 
+The way to use this is to configure a World() based on your needs
 (number of objects, etc) and then call `world.reset()`.
 
 *NOTE:* The simulator should be accessed as `world.sim` and not just
 saved separately, because it may change between resets.
 
 Configuration is idiomatically done through Engine configuration,
-so any changes to this configuration should also be reflected in 
+so any changes to this configuration should also be reflected in
 changes to the Engine.
 
 TODO:
@@ -68,12 +68,13 @@ class World:
         'observe_vision': False,
     }
 
-    def __init__(self, config={}, render_context=None):
+    def __init__(self, config={}, render_context=None, render_device_id=-1):
         ''' config - JSON string or dict of configuration.  See self.parse() '''
         self.parse(config)  # Parse configuration
         self.first_reset = True
         self.viewer = None
         self.render_context = render_context
+        self.render_device_id = render_device_id
         self.update_viewer_sim = False
         self.robot = Robot(self.robot_base)
 
@@ -179,7 +180,7 @@ class World:
         # Build and add a tracking camera (logic needed to ensure orientation correct)
         theta = self.robot_rot
         xyaxes = dict(
-                    x1=np.cos(theta), 
+                    x1=np.cos(theta),
                     x2=-np.sin(theta),
                     x3=0,
                     y1=np.sin(theta),
@@ -194,11 +195,11 @@ class World:
         track_camera = xmltodict.parse('''<b>
             <camera name="track" mode="track" pos="{xp} {yp} {zp}" xyaxes="{x1} {x2} {x3} {y1} {y2} {y3}"/>
             </b>'''.format(**pos, **xyaxes))
-        worldbody['body'][0]['camera'] = [
-            worldbody['body'][0]['camera'],
-            track_camera['b']['camera']
-            ]
 
+        # support multiple cameras on 'body'
+        if not isinstance(worldbody['body'][0]['camera'], list):
+            worldbody['body'][0]['camera'] = [worldbody['body'][0]['camera']]
+        worldbody['body'][0]['camera'].append(track_camera['b']['camera'])
 
         # Add objects to the XML dictionary
         for name, object in self.objects.items():
@@ -207,7 +208,7 @@ class World:
             object['quat'] = rot2quat(object['rot'])
             if name=='box':
                 dim = object['size'][0]
-                object['dim'] = dim
+                object['height'] = object['size'][-1]
                 object['width'] = dim/2
                 object['x'] = dim
                 object['y'] = dim
@@ -216,13 +217,13 @@ class World:
                         <freejoint name="{name}"/>
                         <geom name="{name}" type="{type}" size="{size}" density="{density}"
                             rgba="{rgba}" group="{group}"/>
-                        <geom name="col1" type="{type}" size="{width} {width} {dim}" density="{density}"
+                        <geom name="col1" type="{type}" size="{width} {width} {height}" density="{density}"
                             rgba="{rgba}" group="{group}" pos="{x} {y} 0"/>
-                        <geom name="col2" type="{type}" size="{width} {width} {dim}" density="{density}"
+                        <geom name="col2" type="{type}" size="{width} {width} {height}" density="{density}"
                             rgba="{rgba}" group="{group}" pos="-{x} {y} 0"/>
-                        <geom name="col3" type="{type}" size="{width} {width} {dim}" density="{density}"
+                        <geom name="col3" type="{type}" size="{width} {width} {height}" density="{density}"
                             rgba="{rgba}" group="{group}" pos="{x} -{y} 0"/>
-                        <geom name="col4" type="{type}" size="{width} {width} {dim}" density="{density}"
+                        <geom name="col4" type="{type}" size="{width} {width} {height}" density="{density}"
                             rgba="{rgba}" group="{group}" pos="-{x} -{y} 0"/>
                     </body>
                 '''.format(**{k: convert(v) for k, v in object.items()}))
@@ -284,7 +285,8 @@ class World:
 
         # Add render contexts to newly created sim
         if self.render_context is None and self.observe_vision:
-            render_context = MjRenderContextOffscreen(self.sim, device_id=-1, quiet=True)
+            render_context = MjRenderContextOffscreen(
+                self.sim, device_id=self.render_device_id, quiet=True)
             render_context.vopt.geomgroup[:] = 1
             self.render_context = render_context
 

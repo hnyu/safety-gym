@@ -31,8 +31,6 @@ ROBOT_OVERRIDES = {
         },
 }
 
-MAKE_VISION_ENVIRONMENTS = False
-
 #========================================#
 # Helper Class for Easy Gym Registration #
 #========================================#
@@ -72,33 +70,27 @@ class SafexpEnvBase:
             register(id=env_name,
                      entry_point='safety_gym.envs.mujoco:Engine',
                      kwargs={'config': reg_config})
-            if MAKE_VISION_ENVIRONMENTS:
-                # Vision: note, these environments are experimental! Correct behavior not guaranteed
-                vision_env_name = f'{self.prefix}-{robot_name}{self.name + name}Vision-{VERSION}'
-                vision_config = {'observe_vision': True,
-                                 'observation_flatten': False,
-                                 'vision_render': True}
-                reg_config = deepcopy(reg_config)
-                reg_config.update(vision_config)
-                register(id=vision_env_name,
-                         entry_point='safety_gym.envs.mujoco:Engine',
-                         kwargs={'config': reg_config})
 
 
 
 #=======================================#
 # Common Environment Parameter Defaults #
 #=======================================#
+base_config = {'observe_goal_lidar': True,
+               'observe_box_lidar': True,
+               'lidar_type': 'natural',
+               'lidar_num_bins': 64}
 
-bench_base = SafexpEnvBase('', {'observe_goal_lidar': True,
-                                'observe_box_lidar': True,
-                                'lidar_type': 'pseudo',
-                                'lidar_num_bins': 64
-                                })
+bench_base = SafexpEnvBase('', base_config)
 
-bench_vision_base = SafexpEnvBase('', {'observation_flatten': False,
-                                       'observe_vision': True,
-                                       'vision_size': (160, 80)})
+#vision_base_config = deepcopy(base_config)
+vision_base_config = {}
+vision_base_config.update({'observation_flatten': False,
+               'observe_vision': True,
+               'observe_box_comp': False,
+               'observe_goal_comp': False,
+               'vision_size': (128, 128)})
+bench_vision_base = SafexpEnvBase('', vision_base_config)
 
 zero_base_dict = {'placements_extents': [-1,-1,1,1]}
 
@@ -249,6 +241,7 @@ push_all = {
 # Shared among constrained envs (levels 1, 2)
 push_constrained = {
     'constrain_hazards': True,
+    'constrain_pillars': True,
     'observe_hazards': True,
     'observe_pillars': True,
     }
@@ -274,7 +267,6 @@ push1.update(push_constrained)
 #==============#
 push2 = {
     'placements_extents': [-2, -2, 2, 2],
-    'constrain_pillars': True,
     'hazards_num': 4,
     'pillars_num': 4
 }

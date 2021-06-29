@@ -138,6 +138,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
         'observe_buttons': False,  # Lidar observation of button object positions
         'observe_gremlins': False,  # Gremlins are observed with lidar-like space
         'observe_vision': False,  # Observe vision from the robot
+
         # These next observations are unnormalized, and are only for debugging
         'observe_qpos': False,  # Observe the qpos of the world
         'observe_qvel': False,  # Observe the qvel of the robot
@@ -154,9 +155,11 @@ class Engine(gym.Env, gym.utils.EzPickle):
         'render_lidar_offset_delta': 0.06,
 
         # Vision observation parameters
-        'vision_size': (120, 80),  # Size (width, height) of vision observation; gets flipped internally to (rows, cols) format
+        'vision_from_top': False,      # observe vision from top above the robot
+        'vision_size': (60, 40),  # Size (width, height) of vision observation; gets flipped internally to (rows, cols) format
         'vision_render': True,  # Render vision observation in the viewer
-        'vision_render_scale': 2,  # Scale to render the vision in the viewer
+        'vision_render_scale': 1,  # Scale to render the vision in the viewer
+        'vision_render_device_id': 0, # which gpu device to use for rendering
 
         # Lidar observation parameters
         'lidar_num_bins': 10,  # Bins (around a full circle) for lidar sensing
@@ -683,10 +686,11 @@ class Engine(gym.Env, gym.utils.EzPickle):
                           'rgba': COLOR_GREMLIN}
                 world_config['objects'][name] = object
         if self.task == 'push':
+            height = self.box_size
             object = {'name': 'box',
                       'type': 'box',
-                      'size': np.ones(3) * self.box_size,
-                      'pos': np.r_[self.layout['box'], self.box_size],
+                      'size': np.r_[self.box_size, self.box_size, height],
+                      'pos': np.r_[self.layout['box'], height],
                       'rot': self.random_rot(),
                       'density': self.box_density,
                       'group': GROUP_BOX,
@@ -701,7 +705,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
                 height = self.buttons_size * 2
             else:
                 goal_size = self.goal_size
-                height = self.goal_size / 2
+                height = self.goal_size
             geom = {'name': 'goal',
                     'size': [goal_size, height],
                     'pos': np.r_[self.layout['goal'], height + 1e-2],
@@ -862,7 +866,8 @@ class Engine(gym.Env, gym.utils.EzPickle):
         self.world_config_dict = self.build_world_config()
 
         if self.world is None:
-            self.world = World(self.world_config_dict)
+            self.world = World(self.world_config_dict,
+                               render_device_id=self.vision_render_device_id)
             self.world.reset()
             self.world.build()
         else:
@@ -961,12 +966,26 @@ class Engine(gym.Env, gym.utils.EzPickle):
         assert vec.shape == (self.compass_shape,), f'Bad vec {vec}'
         return vec
 
-    def obs_vision(self):
+    def obs_vision(self, scale=1):
         ''' Return pixels from the robot camera '''
-        # Get a render context so we can
-        width, height = self.vision_size
-        vision = self.sim.render(width, height, camera_name='vision', mode='offscreen')
-        return vision # y axis is flipped
+        if not self.vision_from_top:
+            width, height = self.vision_size
+            width, height = width * scale, height // 2 * scale
+            vision = self.sim.render(
+                width, height, camera_name='vision', mode='offscreen') # y flipped
+            vision2 = self.sim.render(
+                width, height, camera_name='vision2', mode='offscreen')
+            vision = np.concatenate((vision[::-1, ...], vision2), axis=0)
+            return vision
+            #depth = np.concatenate((depth[::-1, ...], depth2), axis=0)
+            #depth = np.repeat(np.expand_dims(depth, axis=-1), 3, axis=-1)
+            #depth = (depth * 255).astype(np.uint8)
+            #return depth
+        else:
+            width, height = self.vision_size
+            width, height = width * scale, height * scale
+            return self.sim.render(
+                width, height, camera_name="top", mode='offscreen')
 
     def obs_lidar(self, positions, group):
         '''
@@ -1495,15 +1514,23 @@ class Engine(gym.Env, gym.utils.EzPickle):
             self.render_sphere(self.world.robot_pos(), 0.25, COLOR_RED, alpha=.5)
 
         # Draw vision pixels
-        if self.observe_vision and self.vision_render:
+        if self.observe_vision and self.vision_render and mode == "human":
             self.save_obs_vision = self.obs_vision()
 
         if mode=='human':
             self.viewer.render()
         elif mode=='rgb_array':
-            # y axis is flipped
-            width, height = self.vision_size
-            vision = self.sim.render(width * self.vision_render_scale,
-                                     height * self.vision_render_scale,
-                                     camera_name='vision', mode='offscreen')
-            return vision[::-1, ...] # y axis is flipped
+            if self.observe_vision:
+                frame = self.obs_vision(self.vision_render_scale)
+                if self._cost.get('cost', 0) > 0:
+                    # overlay a red image with the frame to indicate constraint violation
+                    red_img = np.zeros_like(frame, dtype=np.uint8)
+                    red_img[..., 0] = 255
+                    frame = frame // 2 + red_img // 2
+                return frame
+            else: # render third-person view for non-vision observations
+                self.viewer.render(width, height)
+                data = self.viewer.read_pixels(width, height, depth=False)
+                self.viewer._markers[:] = []
+                self.viewer._overlay.clear()
+                return data[::-1, :, :]
