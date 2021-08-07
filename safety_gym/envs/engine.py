@@ -659,14 +659,15 @@ class Engine(gym.Env, gym.utils.EzPickle):
 
         # Extra objects to add to the scene
         world_config['objects'] = {}
+        height = 0.4
         if self.vases_num:
             for i in range(self.vases_num):
                 name = f'vase{i}'
                 object = {'name': name,
-                          'size': np.ones(3) * self.vases_size,
+                          'size': np.r_[self.vases_size, self.vases_size, height],
                           'type': 'box',
                           'density': self.vases_density,
-                          'pos': np.r_[self.layout[name], self.vases_size - self.vases_sink],
+                          'pos': np.r_[self.layout[name], height - self.vases_sink],
                           'rot': self.random_rot(),
                           'group': GROUP_VASE,
                           'rgba': COLOR_VASE}
@@ -677,16 +678,15 @@ class Engine(gym.Env, gym.utils.EzPickle):
                 name = f'gremlin{i}obj'
                 self._gremlins_rots[i] = self.random_rot()
                 object = {'name': name,
-                          'size': np.ones(3) * self.gremlins_size,
+                          'size': np.r_[self.gremlins_size, self.gremlins_size, height],
                           'type': 'box',
                           'density': self.gremlins_density,
-                          'pos': np.r_[self.layout[name.replace('obj', '')], self.gremlins_size],
+                          'pos': np.r_[self.layout[name.replace('obj', '')], height],
                           'rot': self._gremlins_rots[i],
                           'group': GROUP_GREMLIN,
                           'rgba': COLOR_GREMLIN}
                 world_config['objects'][name] = object
         if self.task == 'push':
-            height = self.box_size
             object = {'name': 'box',
                       'type': 'box',
                       'size': np.r_[self.box_size, self.box_size, height],
@@ -702,10 +702,8 @@ class Engine(gym.Env, gym.utils.EzPickle):
         if self.task in ['goal', 'push', 'button']:
             if self.task == 'button':
                 goal_size = self.buttons_size
-                height = self.buttons_size * 2
             else:
                 goal_size = self.goal_size
-                height = self.goal_size
             geom = {'name': 'goal',
                     'size': [goal_size, height],
                     'pos': np.r_[self.layout['goal'], height + 1e-2],
@@ -720,8 +718,8 @@ class Engine(gym.Env, gym.utils.EzPickle):
             for i in range(self.hazards_num):
                 name = f'hazard{i}'
                 geom = {'name': name,
-                        'size': [self.hazards_size, self.hazards_size / 2],
-                        'pos': np.r_[self.layout[name], self.hazards_size / 2 + 1e-2],
+                        'size': [self.hazards_size, height],
+                        'pos': np.r_[self.layout[name], height + 1e-2],
                         'rot': self.random_rot(),
                         'type': 'cylinder',
                         'contype': 0,
@@ -755,10 +753,10 @@ class Engine(gym.Env, gym.utils.EzPickle):
             for i in range(self.buttons_num):
                 name = f'button{i}'
                 geom = {'name': name,
-                        'size': np.ones(3) * self.buttons_size,
-                        'pos': np.r_[self.layout[name], self.buttons_size],
+                        'size': np.r_[self.buttons_size, height],
+                        'pos': np.r_[self.layout[name], height],
                         'rot': self.random_rot(),
-                        'type': 'sphere',
+                        'type': 'cylinder',
                         'group': GROUP_BUTTON,
                         'rgba': COLOR_BUTTON}
                 world_config['geoms'][name] = geom
@@ -781,9 +779,9 @@ class Engine(gym.Env, gym.utils.EzPickle):
             for i in range(self.gremlins_num):
                 name = f'gremlin{i}mocap'
                 mocap = {'name': name,
-                         'size': np.ones(3) * self.gremlins_size,
+                         'size': np.r_[self.gremlins_size, self.gremlins_size, height],
                          'type': 'box',
-                         'pos': np.r_[self.layout[name.replace('mocap', '')], self.gremlins_size],
+                         'pos': np.r_[self.layout[name.replace('mocap', '')], height],
                          'rot': self._gremlins_rots[i],
                          'group': GROUP_GREMLIN,
                          'rgba': np.array([1, 1, 1, .1]) * COLOR_GREMLIN}
@@ -902,6 +900,36 @@ class Engine(gym.Env, gym.utils.EzPickle):
         # Reset stateful parts of the environment
         self.first_reset = False  # Built our first world successfully
 
+        if False:
+            layout = dict()
+            for name, xy in self.layout.items():
+                if name.startswith("vase"):
+                    rot = self.world_config_dict["objects"][name]['rot']
+                    c, s = np.cos(rot), np.sin(rot)
+                    mat = np.array(((c, -s), (s, c)))
+                    coordinates = np.array([[-1, -1], [1, -1], [1, 1], [-1, 1]],
+                                        dtype=np.float32) * self.vases_size
+                    coordinates = np.matmul(mat, coordinates.T).T
+                    coordinates = (coordinates + xy).tostring()
+                else:
+                    coordinates = xy.tostring()
+                layout[name] = coordinates
+            print(layout)
+
+        # For Doggo, we want to exclude all body parts when using natural lidar
+        # Due to a bug in Mujoco, we have to hack this manually
+        bodies = ['leg_1', 'aux_1', 'leg_2', 'aux_2', 'rear', 'leg_3', 'aux_3',
+                  'leg_4', 'aux_4', 'aux_11', 'aux_22', 'aux_33', 'aux_44', 'robot',
+                  ]
+        self._lidar_excludes = set()
+        for b in bodies:
+            try:
+                id = self.model.body_name2id(b)
+                self._lidar_excludes.add(id)
+            except:
+                pass
+        self._lidar_excludes.add(0) # 'floor'
+
         # Return an observation
         return self.obs()
 
@@ -1007,14 +1035,18 @@ class Engine(gym.Env, gym.utils.EzPickle):
         body = self.model.body_name2id('robot')
         grp = np.asarray([i == group for i in range(int(const.NGROUP))], dtype='uint8')
         pos = np.asarray(self.world.robot_pos(), dtype='float64')
+        if True: #'doggo' in self.robot_base:
+            pos[-1] = 0.3
         mat_t = self.world.robot_mat()
         obs = np.zeros(self.lidar_num_bins)
         for i in range(self.lidar_num_bins):
             theta = (i / self.lidar_num_bins) * np.pi * 2
             vec = np.matmul(mat_t, theta2vec(theta))  # Rotate from ego to world frame
             vec = np.asarray(vec, dtype='float64')
-            dist, _ = self.sim.ray_fast_group(pos, vec, grp, 1, body)
-            if dist >= 0:
+            if True: #'doggo' in self.robot_base:
+                vec[-1] = 0.
+            dist, geomid = self.sim.ray_fast_group(pos, vec, grp, 1, body)
+            if dist >= 0 and geomid not in self._lidar_excludes:
                 obs[i] = np.exp(-dist)
         return obs
 
@@ -1268,6 +1300,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
         assert not self.done, 'Environment must be reset before stepping'
 
         info = {}
+        #info = {"xy" : self.robot_pos[:2]}
 
         # Set action
         action_range = self.model.actuator_ctrlrange

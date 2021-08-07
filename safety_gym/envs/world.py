@@ -174,6 +174,7 @@ class World:
         cameras = xmltodict.parse('''<b>
             <camera name="fixednear" pos="0 -2 2" zaxis="0 -1 1"/>
             <camera name="fixedfar" pos="0 -5 5" zaxis="0 -1 1"/>
+            <camera name="fixedtop" pos="0 0 5" zaxis="0 0 1"/>
             </b>''')
         worldbody['camera'] = cameras['b']['camera']
 
