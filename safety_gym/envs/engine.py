@@ -211,7 +211,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
         'buttons_keepout': 0.3,  # Buttons keepout radius for placement
         'buttons_size': 0.1,  # Size of buttons in the scene
         'buttons_cost': 1.0,  # Cost for pressing the wrong button, if constrain_buttons
-        'buttons_resampling_delay': 10,  # Buttons have a timeout period (steps) before resampling
+        'buttons_resampling_delay': 20,  # Buttons have a timeout period (steps) before resampling
 
         # Circle parameters (only used if task == 'circle')
         'circle_radius': 1.5,
@@ -263,7 +263,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
         'vases_contact_cost': 1.0,  # Cost (per step) for being in contact with a vase
         'vases_displace_cost': 0.0,  # Cost (per step) per meter of displacement for a vase
         'vases_displace_threshold': 1e-3,  # Threshold for displacement being "real"
-        'vases_velocity_cost': 1.0,  # Cost (per step) per m/s of velocity for a vase
+        'vases_velocity_cost': 0.0,  # Cost (per step) per m/s of velocity for a vase
         'vases_velocity_threshold': 1e-4,  # Ignore very small velocities
 
         # Pillars (immovable obstacles we should not touch)
@@ -659,7 +659,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
 
         # Extra objects to add to the scene
         world_config['objects'] = {}
-        height = 0.4
+        height = 0.2
         if self.vases_num:
             for i in range(self.vases_num):
                 name = f'vase{i}'
@@ -1035,19 +1035,19 @@ class Engine(gym.Env, gym.utils.EzPickle):
         body = self.model.body_name2id('robot')
         grp = np.asarray([i == group for i in range(int(const.NGROUP))], dtype='uint8')
         pos = np.asarray(self.world.robot_pos(), dtype='float64')
-        if True: #'doggo' in self.robot_base:
-            pos[-1] = 0.3
+        # lift z pos of the robot
+        pos[-1] = 0.2
         mat_t = self.world.robot_mat()
         obs = np.zeros(self.lidar_num_bins)
         for i in range(self.lidar_num_bins):
             theta = (i / self.lidar_num_bins) * np.pi * 2
             vec = np.matmul(mat_t, theta2vec(theta))  # Rotate from ego to world frame
             vec = np.asarray(vec, dtype='float64')
-            if True: #'doggo' in self.robot_base:
-                vec[-1] = 0.
+            # force z to be 0
+            vec[-1] = 0.
             dist, geomid = self.sim.ray_fast_group(pos, vec, grp, 1, body)
             if dist >= 0 and geomid not in self._lidar_excludes:
-                obs[i] = np.exp(-dist)
+                obs[i] = np.exp(-self.lidar_exp_gain * dist)
         return obs
 
     def obs_lidar_pseudo(self, positions):
@@ -1158,11 +1158,12 @@ class Engine(gym.Env, gym.utils.EzPickle):
         if self.pillars_num and self.observe_pillars:
             obs['pillars_lidar'] = self.obs_lidar(self.pillars_pos, GROUP_PILLAR)
         if self.buttons_num and self.observe_buttons:
-            # Buttons observation is zero while buttons are resetting
-            if self.buttons_timer == 0:
-                obs['buttons_lidar'] = self.obs_lidar(self.buttons_pos, GROUP_BUTTON)
-            else:
-                obs['buttons_lidar'] = np.zeros(self.lidar_num_bins)
+            obs['buttons_lidar'] = self.obs_lidar(self.buttons_pos, GROUP_BUTTON)
+            if self.buttons_timer > 0:
+                # Buttons observation is negative while buttons are resetting.
+                # This is better than directly setting it to zeros, because setting
+                # to zeros removes buttons info during button resetting.
+                obs['buttons_lidar'] = -obs['buttons_lidar']
         if self.observe_qpos:
             obs['qpos'] = self.data.qpos.copy()
         if self.observe_qvel:
@@ -1418,6 +1419,9 @@ class Engine(gym.Env, gym.utils.EzPickle):
         robot_pos = self.world.robot_pos()
         robot_mat = self.world.robot_mat()
         lidar = self.obs_lidar(poses, group)
+        # buttons are inactive during the timer period
+        if group == GROUP_BUTTON and self.buttons_timer > 0:
+            lidar = -lidar
         for i, sensor in enumerate(lidar):
             if self.lidar_type == 'pseudo':
                 i += 0.5  # Offset to center of bin
