@@ -167,12 +167,12 @@ button_all = {
     'task': 'button',
     'buttons_num': 4,
     'buttons_size': 0.1,
-    'buttons_keepout': 0.2,
+    'buttons_keepout': 0.1,
     'observe_buttons': True,
     'hazards_size': 0.2,
     'hazards_keepout': 0.18,
-    'gremlins_travel': 0.35,
-    'gremlins_keepout': 0.4,
+    'gremlins_travel': 0.2,
+    'gremlins_keepout': 0.3, # =gremlins_size+gremlins_travel
     }
 
 # Shared among constrained envs (levels 1, 2)
@@ -195,7 +195,7 @@ button0 = deepcopy(zero_base_dict)
 button1 = {
     'placements_extents': [-1.5, -1.5, 1.5, 1.5],
     'hazards_num': 4,
-    'gremlins_num': 4
+    'gremlins_num': 3
 }
 button1.update(button_constrained)
 
@@ -203,9 +203,9 @@ button1.update(button_constrained)
 # Button Level 2 #
 #================#
 button2 = {
-    'placements_extents': [-1.8, -1.8, 1.8, 1.8],
+    'placements_extents': [-2, -2, 2, 2],
     'hazards_num': 8,
-    'gremlins_num': 6
+    'gremlins_num': 5
 }
 button2.update(button_constrained)
 

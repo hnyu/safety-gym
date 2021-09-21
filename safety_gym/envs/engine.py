@@ -100,7 +100,9 @@ class Engine(gym.Env, gym.utils.EzPickle):
         'action_noise': 0.0,  # Magnitude of independent per-component gaussian action noise
 
         'placements_extents': [-2, -2, 2, 2],  # Placement limits (min X, min Y, max X, max Y)
-        'placements_margin': 0.0,  # Additional margin added to keepout when placing objects
+        'placements_margin': 0.3,  # Additional margin added to keepout when placing objects
+                                   # make sure robot can pass through any pair of objects
+                                   # =2xrobot_keep
 
         # Floor
         'floor_display_mode': False,  # In display mode, the visible part of the floor is cropped
@@ -108,7 +110,8 @@ class Engine(gym.Env, gym.utils.EzPickle):
         # Robot
         'robot_placements': None,  # Robot placements list (defaults to full extents)
         'robot_locations': [],  # Explicitly place robot XY coordinate
-        'robot_keepout': 0.4,  # Needs to be set to match the robot XML used
+        # 0.1 should be OK for point and car, but not OK for doggo!!
+        'robot_keepout': 0.15,  # Needs to be set to match the robot XML used
         'robot_base': 'xmls/car.xml',  # Which robot XML to use as the base
         'robot_rot': None,  # Override robot starting angle
 
@@ -576,7 +579,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
         layout = {}
         for name, (placements, keepout) in self.placements.items():
             conflicted = True
-            for _ in range(100):
+            for _ in range(200):
                 xy = self.draw_placement(placements, keepout)
                 if placement_is_valid(xy, layout):
                     conflicted = False
