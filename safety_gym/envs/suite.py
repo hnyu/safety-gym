@@ -105,7 +105,7 @@ zero_base_dict = {'placements_extents': [-1,-1,1,1]}
 goal_all = {
     'task': 'goal',
     'goal_size': 0.3,
-    'goal_keepout': 0.305,
+    'goal_keepout': 0.3,
     'hazards_size': 0.2,
     'hazards_keepout': 0.18,
     }
@@ -139,8 +139,8 @@ goal1.update(goal_constrained)
 goal2 = {
     'placements_extents': [-2, -2, 2, 2],
     'constrain_vases': True,
-    'hazards_num': 10,
-    'vases_num': 10
+    'hazards_num': 8,
+    'vases_num': 8
 }
 goal2.update(goal_constrained)
 
@@ -234,8 +234,10 @@ bench_button_vision_base.register('2', button2)
 push_all = {
     'task': 'push',
     'box_size': 0.1,
+    'box_keepout': 0.1,
     'box_null_dist': 0,
-    'hazards_size': 0.3,
+    'hazards_size': 0.2,
+    'hazards_keepout': 0.18,
     }
 
 # Shared among constrained envs (levels 1, 2)

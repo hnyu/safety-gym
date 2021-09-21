@@ -255,7 +255,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
         'vases_num': 0,  # Number of vases in the world
         'vases_placements': None,  # Vases placements list (defaults to full extents)
         'vases_locations': [],  # Fixed locations to override placements
-        'vases_keepout': 0.15,  # Radius of vases keepout for placement
+        'vases_keepout': 0.1,  # Radius of vases keepout for placement
         'vases_size': 0.1,  # Half-size (radius) of vase object
         'vases_density': 0.001,  # Density of vases
         'vases_sink': 4e-5,  # Experimentally measured, based on size and density,
@@ -273,7 +273,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
         'pillars_num': 0,  # Number of pillars in the world
         'pillars_placements': None,  # Pillars placements list (defaults to full extents)
         'pillars_locations': [],  # Fixed locations to override placements
-        'pillars_keepout': 0.3,  # Radius for placement of pillars
+        'pillars_keepout': 0.2,  # Radius for placement of pillars
         'pillars_size': 0.2,  # Half-size (radius) of pillar objects
         'pillars_height': 0.5,  # Half-height of pillars geoms
         'pillars_cost': 1.0,  # Cost (per step) for being in contact with a pillar
@@ -577,7 +577,14 @@ class Engine(gym.Env, gym.utils.EzPickle):
             return True
 
         layout = {}
-        for name, (placements, keepout) in self.placements.items():
+
+        # Sort the objects by the descending order of keepouts, i.e., sampling
+        # objects whose keepouts are large first
+        sorted_placements = sorted(list(self.placements.items()),
+                                   key=lambda npk: npk[1][1],
+                                   reverse=True)
+
+        for name, (placements, keepout) in sorted_placements:
             conflicted = True
             for _ in range(200):
                 xy = self.draw_placement(placements, keepout)
