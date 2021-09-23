@@ -170,6 +170,8 @@ class Engine(gym.Env, gym.utils.EzPickle):
         'lidar_exp_gain': 1.0, # Scaling factor for distance in exponential distance lidar
         'lidar_type': 'pseudo',  # 'pseudo', 'natural', see self.obs_lidar()
         'lidar_alias': True,  # Lidar bins alias into each other
+        'lidar_height': 0.3,  # the height of lidar rays (z)
+        'object_height': 0.4, # the height of each object to be detected by the lidar
 
         # Compass observation parameters
         'compass_shape': 2,  # Set to 2 or 3 for XY or XYZ unit vector compass observation.
@@ -559,7 +561,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
         if not self.randomize_layout:
             self.rs = np.random.RandomState(0)
 
-        for _ in range(10000):
+        for _ in range(100000):
             if self.sample_layout():
                 break
         else:
@@ -669,7 +671,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
 
         # Extra objects to add to the scene
         world_config['objects'] = {}
-        height = 0.2
+        height = self.object_height / 2.
         if self.vases_num:
             for i in range(self.vases_num):
                 name = f'vase{i}'
@@ -1046,7 +1048,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
         grp = np.asarray([i == group for i in range(int(const.NGROUP))], dtype='uint8')
         pos = np.asarray(self.world.robot_pos(), dtype='float64')
         # lift z pos of the robot
-        pos[-1] = 0.2
+        pos[-1] = self.lidar_height
         mat_t = self.world.robot_mat()
         obs = np.zeros(self.lidar_num_bins)
         for i in range(self.lidar_num_bins):
