@@ -1324,7 +1324,12 @@ class Engine(gym.Env, gym.utils.EzPickle):
 
         # Simulate physics forward
         exception = False
-        for _ in range(self.rs.binomial(self.frameskip_binom_n, self.frameskip_binom_p)):
+        trials = self.frameskip_binom_n
+        if 'doggo' in self.robot_base:
+            # We decrease the timestep of doggo.xml by 0.8x to accurately detect collisions
+            # by rapid movements, so here we simulate 4x more physics steps per env step
+            trials *= 5
+        for _ in range(self.rs.binomial(trials, self.frameskip_binom_p)):
             try:
                 self.set_mocaps()
                 self.sim.step()  # Physics simulation step
