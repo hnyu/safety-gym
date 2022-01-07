@@ -1047,7 +1047,9 @@ class Engine(gym.Env, gym.utils.EzPickle):
         body = self.model.body_name2id('robot')
         grp = np.asarray([i == group for i in range(int(const.NGROUP))], dtype='uint8')
         pos = np.asarray(self.world.robot_pos(), dtype='float64')
-        # lift z pos of the robot
+        # lift z pos of the robot. This HACK is only needed for MuJoCo version<=200 which
+        # can't correctly exclude robot body parts when doing mj_ray(). 210 has
+        # fixed this issue.
         pos[-1] = self.lidar_height
         mat_t = self.world.robot_mat()
         obs = np.zeros(self.lidar_num_bins)
