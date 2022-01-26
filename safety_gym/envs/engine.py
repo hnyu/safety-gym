@@ -896,6 +896,9 @@ class Engine(gym.Env, gym.utils.EzPickle):
         ''' Reset the physics simulation and return observation '''
         self._seed += 1  # Increment seed
         self.rs = np.random.RandomState(self._seed)
+
+        #self.rs = np.random.RandomState(25)
+
         self.done = False
         self.steps = 0  # Count of steps taken in this episode
         # Set the button timer to zero (so button is immediately visible)
